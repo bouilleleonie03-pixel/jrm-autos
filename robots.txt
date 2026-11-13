@@ -3,4 +3,4 @@ Allow: /
 Disallow: /contact.php
 Disallow: /merci.html
 
-Sitemap: https://www.votre-domaine.fr/sitemap.xml
+Sitemap: https://jrm-autos.vercel.app/sitemap.xml
