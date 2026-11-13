@@ -67,7 +67,6 @@ $email     = oneLine(field('email', 150));
 $objet     = oneLine(field('objet', 80));
 $vehicule  = oneLine(field('vehicule', 120));
 $message   = field('message', 4000);
-$consent   = !empty($_POST['consentement']);
 $isLocation = (isset($_POST['formulaire']) && $_POST['formulaire'] === 'location');
 $dateDepart = oneLine(field('date_depart', 10));
 $dateRetour = oneLine(field('date_retour', 10));
@@ -96,7 +95,6 @@ if ($isLocation) {
     if (!$d1 || $d1->format('Y-m-d') !== $dateDepart || $d1 < $today) $erreurs[] = 'date de départ';
     if (!$d2 || $d2->format('Y-m-d') !== $dateRetour || ($d1 && $d2 < $d1)) $erreurs[] = 'date de retour';
 }
-if (!$consent)                                           $erreurs[] = 'consentement';
 if (preg_match('/(https?:\/\/.*){3,}/i', $message))      $erreurs[] = 'message (trop de liens)';
 
 if ($erreurs) {
