@@ -2,24 +2,18 @@
  * JRM AUTOS — Traitement des formulaires du site (contact et demande de location)
  *
  * Fonction Vercel : elle reçoit le formulaire, le vérifie, puis l'envoie par e-mail
- * dans la boîte du garage (DESTINATAIRE ci-dessous) en passant par un compte Gmail.
- * Ce compte d'envoi n'a pas besoin d'être celui du garage.
+ * dans la boîte du garage (destinataire fixé dans le script Apps Script) via une web app
+ * Script exécutée par un compte expéditeur séparé. Le script n'accède pas à la boîte.
  *
  * ┌──────────────────────── CONFIGURATION ────────────────────────┐
  * │ À saisir dans Vercel > projet > Settings > Environment        │
  * │ Variables (jamais dans ce fichier) :                          │
  * │                                                               │
- * │ GMAIL_USER          compte Gmail qui envoie les messages      │
- * │ GMAIL_APP_PASSWORD  mot de passe d'application de ce compte   │
- * │ CONTACT_TO          (facultatif) autre boîte de réception     │
+ * │ GOOGLE_APPS_SCRIPT_URL     URL privée de déploiement /exec     │
  * └───────────────────────────────────────────────────────────────┘
  */
-import nodemailer from 'nodemailer';
 
-const NOM_SITE = 'Site JRM Autos';
 const TELEPHONE_GARAGE = '05 56 63 03 84';
-// Boîte qui reçoit les demandes. La variable CONTACT_TO, si elle existe, la remplace.
-const DESTINATAIRE = 'jrm.autos33@gmail.com';
 
 const OBJETS_AUTORISES = [
   'Mécanique et entretien', 'Diagnostic automobile', 'Carrosserie', 'Vitrage automobile',
@@ -146,35 +140,34 @@ export function preparer(form, maintenant = new Date()) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Envoi par le compte Gmail du garage                                */
+/* Envoi via le compte expéditeur dédié (Google Apps Script)           */
 
 async function envoyer(mail) {
-  const utilisateur = (process.env.GMAIL_USER || '').trim();
-  // Google affiche le mot de passe d'application par blocs de 4 : on retire les espaces.
-  const motDePasse = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
-  if (!utilisateur || !motDePasse) {
-    const erreur = new Error('réglages GMAIL_USER ou GMAIL_APP_PASSWORD absents dans Vercel');
+  const url = (process.env.GOOGLE_APPS_SCRIPT_URL || '').trim();
+  if (!url) {
+    const erreur = new Error('réglage GOOGLE_APPS_SCRIPT_URL absent dans Vercel');
     erreur.code = 'REGLAGES';
     throw erreur;
   }
 
-  const transport = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user: utilisateur, pass: motDePasse },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+  // Apps Script renvoie son contenu via une redirection Google : fetch la suit.
+  const reponse = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ replyTo: mail.repondreA, subject: mail.sujet, body: mail.corps }),
+    signal: AbortSignal.timeout(10000),
   });
 
-  await transport.sendMail({
-    from: { name: NOM_SITE, address: utilisateur },
-    to: (process.env.CONTACT_TO || '').trim() || DESTINATAIRE,
-    replyTo: mail.repondreA,
-    subject: mail.sujet,
-    text: mail.corps,
-  });
+  let resultat;
+  try {
+    resultat = await reponse.json();
+  } catch {
+    throw new Error(`Google Apps Script a renvoyé une réponse illisible (${reponse.status})`);
+  }
+  if (!reponse.ok || !resultat || resultat.ok !== true) {
+    const raison = resultat && typeof resultat.raison === 'string' ? resultat.raison : `HTTP ${reponse.status}`;
+    throw new Error(`Google Apps Script a refusé l'envoi : ${raison}`);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,7 +183,7 @@ const RETOUR_ERREUR_LOCATION = '/location.html?erreur=1#contact-form';
 function repondre(ok, message, enJson, retourErreur = RETOUR_ERREUR_CONTACT, statut = ok ? 200 : 400, raison) {
   const entetes = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
   if (enJson) {
-    // `raison` aide au diagnostic : « reglages » (variables Vercel absentes) ou « envoi » (Gmail a refusé).
+    // `raison` aide au diagnostic sans révéler les secrets ni les données du formulaire.
     return new Response(JSON.stringify(raison ? { ok, message, raison } : { ok, message }), {
       status: statut,
       headers: { ...entetes, 'Content-Type': 'application/json; charset=utf-8' },
@@ -239,10 +232,9 @@ export function GET(request) {
     const etat = {
       fonction: 'en ligne',
       reglages: {
-        GMAIL_USER: Boolean((process.env.GMAIL_USER || '').trim()),
-        GMAIL_APP_PASSWORD: Boolean((process.env.GMAIL_APP_PASSWORD || '').trim()),
+        GOOGLE_APPS_SCRIPT_URL: Boolean((process.env.GOOGLE_APPS_SCRIPT_URL || '').trim()),
       },
-      destinataire: (process.env.CONTACT_TO || '').trim() ? 'adresse définie par CONTACT_TO' : 'boîte du garage',
+      destinataire: 'boîte du garage',
     };
     return new Response(JSON.stringify(etat), {
       status: 200,
