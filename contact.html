@@ -75,7 +75,7 @@
       <h2>Envoyer une demande</h2>
       <p class="lead" style="margin-bottom:28px">Décrivez votre besoin : nous revenons vers vous par téléphone ou par e-mail.</p>
       <noscript><p class="note">Le formulaire fonctionne aussi sans JavaScript : vous serez redirigé après l'envoi.</p></noscript>
-      <form id="contact-form" action="contact.php" method="post" novalidate>
+      <form id="contact-form" action="/api/contact" method="post" novalidate>
         <div class="form-grid">
           <div class="field"><label for="f-nom">Nom et prénom <span class="req">*</span></label><input id="f-nom" name="nom" type="text" autocomplete="name" required maxlength="100"><p class="err">Indiquez votre nom.</p></div>
           <div class="field"><label for="f-tel">Téléphone <span class="req">*</span></label><input id="f-tel" name="telephone" type="tel" autocomplete="tel" required maxlength="30"><p class="err">Indiquez un numéro valide.</p></div>

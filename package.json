@@ -1,0 +1,10 @@
+{
+  "name": "jrm-autos-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site vitrine JRM Autos : pages statiques et envoi des formulaires par une fonction Vercel",
+  "dependencies": {
+    "nodemailer": "^10.5.0"
+  }
+}
