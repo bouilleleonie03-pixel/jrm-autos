@@ -2,21 +2,24 @@
  * JRM AUTOS — Traitement des formulaires du site (contact et demande de location)
  *
  * Fonction Vercel : elle reçoit le formulaire, le vérifie, puis l'envoie par e-mail
- * au garage en passant par son compte Gmail.
+ * dans la boîte du garage (DESTINATAIRE ci-dessous) en passant par un compte Gmail.
+ * Ce compte d'envoi n'a pas besoin d'être celui du garage.
  *
  * ┌──────────────────────── CONFIGURATION ────────────────────────┐
  * │ À saisir dans Vercel > projet > Settings > Environment        │
  * │ Variables (jamais dans ce fichier) :                          │
  * │                                                               │
- * │ GMAIL_USER          adresse Gmail du garage                   │
- * │ GMAIL_APP_PASSWORD  mot de passe d'application Google         │
- * │ CONTACT_TO          (facultatif) autre adresse de réception   │
+ * │ GMAIL_USER          compte Gmail qui envoie les messages      │
+ * │ GMAIL_APP_PASSWORD  mot de passe d'application de ce compte   │
+ * │ CONTACT_TO          (facultatif) autre boîte de réception     │
  * └───────────────────────────────────────────────────────────────┘
  */
 import nodemailer from 'nodemailer';
 
 const NOM_SITE = 'Site JRM Autos';
 const TELEPHONE_GARAGE = '05 56 63 03 84';
+// Boîte qui reçoit les demandes. La variable CONTACT_TO, si elle existe, la remplace.
+const DESTINATAIRE = 'jrm.autos33@gmail.com';
 
 const OBJETS_AUTORISES = [
   'Mécanique et entretien', 'Diagnostic automobile', 'Carrosserie', 'Vitrage automobile',
@@ -167,7 +170,7 @@ async function envoyer(mail) {
 
   await transport.sendMail({
     from: { name: NOM_SITE, address: utilisateur },
-    to: (process.env.CONTACT_TO || '').trim() || utilisateur,
+    to: (process.env.CONTACT_TO || '').trim() || DESTINATAIRE,
     replyTo: mail.repondreA,
     subject: mail.sujet,
     text: mail.corps,
@@ -239,6 +242,7 @@ export function GET(request) {
         GMAIL_USER: Boolean((process.env.GMAIL_USER || '').trim()),
         GMAIL_APP_PASSWORD: Boolean((process.env.GMAIL_APP_PASSWORD || '').trim()),
       },
+      destinataire: (process.env.CONTACT_TO || '').trim() ? 'adresse définie par CONTACT_TO' : 'boîte du garage',
     };
     return new Response(JSON.stringify(etat), {
       status: 200,
